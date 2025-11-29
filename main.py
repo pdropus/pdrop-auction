@@ -24,7 +24,7 @@ def format_time(seconds):
     return f"{m:02d}:{s:02d}"
 
 async def refresh_lot(context: ContextTypes.DEFAULT_TYPE):
-    msg_id = context.job.data
+    msg_id = context.job.data["msg_id"]
     if msg_id not in auctions: return
     lot = auctions[msg_id]
 
@@ -115,7 +115,7 @@ async def new_auction(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "end_time": datetime.now() + timedelta(hours=1), "msg_id": sent.message_id, "ended": False
     }
 
-    context.job_queue.run_repeating(refresh_lot, interval=3, data=sent.message_id)
+    context.job_queue.run_repeating(refresh_lot, interval=3, data={"msg_id": sent.message_id})
 
 async def bid(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
@@ -149,4 +149,5 @@ app.add_handler(MessageHandler(filters.ChatType.CHANNEL, new_auction))
 app.add_handler(CallbackQueryHandler(bid))
 
 print("АУКЦИОН 2025 ЗАПУЩЕН — ВСЁ РАБОТАЕТ 100%!")
+
 app.run_polling(drop_pending_updates=True)
