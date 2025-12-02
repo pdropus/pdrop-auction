@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 import re
 
 TOKEN   = "8454655203:AAGxMR1lN1Xs03e5BxtzpW35EuZvn8imRT0"
-CHANNEL = -1002194638215        # ←←← ВАЖНО: поставь сюда ID канала (не username!)
+CHANNEL = -1119297813        # ←←← ВАЖНО: поставь сюда ID канала (не username!)
 GROUP   = -1003380922656
 ADMIN   = 6895755261            # твой ID
 
@@ -101,3 +101,4 @@ app.add_handler(CommandHandler("sell", sell))
 
 print("АУКЦИОН 2025 — 100% РАБОЧИЙ, ПРОВЕРЕНО НА RENDER ПРЯМО СЕЙЧАС")
 app.run_polling(drop_pending_updates=True)
+
