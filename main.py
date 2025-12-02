@@ -1,6 +1,6 @@
 # auction_2025_PERFECT.py — 100% РАБОТАЕТ НАВСЕГДА
 from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton, Bot
-from telegram.ext import Application, ContextTypes, MessageHandler, CallbackQueryHandler, filters
+from telegram.ext import Application, ContextTypes, MessageHandler, CommandHandler, CallbackQueryHandler, filters
 from datetime import datetime, timedelta
 import re
 
@@ -158,7 +158,8 @@ app = Application.builder().token(TOKEN).build()
 app.add_handler(MessageHandler(filters.ChatType.CHANNEL, new_auction))
 app.add_handler(MessageHandler(filters.Regex(r"(?i)#аукцион"), new_auction))  # /sell через личку
 app.add_handler(CallbackQueryHandler(bid))
-app.add_handler(CommandHandler("sell", sell))
+app.add_handler(CommandHandler(command="sell", callback=sell_command))
 
 print("АУКЦИОН 2025 — 100% РАБОЧИЙ, ТАЙМЕР, КНОПКИ, /sell — ВСЁ ЕСТЬ!")
 app.run_polling(drop_pending_updates=True)
+
