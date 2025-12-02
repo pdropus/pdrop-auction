@@ -87,26 +87,33 @@ async def new_auction(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if l.startswith("локация:"): location = line.split(":",1)[1].strip()
 
     photo = msg.photo[-1].file_id if msg.photo else None
-    sent = await context.bot.send_photo(
+        sent = await context.bot.send_photo(
         GROUP, photo or "https://via.placeholder.com/400",
         caption=f"Название: {name}\nСостояние: {condition}\nСтарт: {price:,} ₽\nЛокация: {location}\n\nЛидер: —\nОсталось: 60:00",
-        reply_markup=InlineKeyboardMarkup([[
-            InlineKeyboardButton(f"ТЕКУЩАЯ СТАВКА: {price:,} ₽".replace(",", " "), callback_data="noop"),
-            InlineKeyboardButton("+50 ₽", callback_data=f"bid_{sent.message_id}_50"),
-            InlineKeyboardButton("+100 ₽", callback_data=f"bid_{sent.message_id}_100"),
-            InlineKeyboardButton("+150 ₽", callback_data=f"bid_{sent.message_id}_150")
-        ]]),
         parse_mode="HTML"
     )
 
-    auctions[sent.message_id] = {
+    # ← ЭТА СТРОКА ДОЛЖНА БЫТЬ ПОСЛЕ send_photo!
+    message_id = sent.message_id
+
+    await context.bot.edit_message_reply_markup(
+        chat_id=GROUP,
+        message_id=message_id,
+        reply_markup=InlineKeyboardMarkup([[
+            InlineKeyboardButton(f"ТЕКУЩАЯ СТАВКА: {price:,} ₽".replace(",", " "), callback_data="noop"),
+            InlineKeyboardButton("+50 ₽", callback_data=f"bid_{message_id}_50"),
+            InlineKeyboardButton("+100 ₽", callback_data=f"bid_{message_id}_100"),
+            InlineKeyboardButton("+150 ₽", callback_data=f"bid_{message_id}_150")
+        ]])
+    )
+
+    auctions[message_id] = {
         "price": price, "start_price": price, "bidder": None, "my_bid": None,
         "name": name, "condition": condition, "location": location,
         "end_time": datetime.now() + timedelta(hours=1), "ended": False
     }
 
-    context.job_queue.run_repeating(refresh_lot, interval=3, data={"msg_id": sent.message_id})
-
+    context.job_queue.run_repeating(refresh_lot, interval=3, data={"msg_id": message_id})
 async def bid(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
     await q.answer()
@@ -146,3 +153,4 @@ app.add_handler(CommandHandler("sell", sell_command))
 
 print("АУКЦИОН 2025 ЗАПУЩЕН — ВСЁ РАБОТАЕТ 100%!")
 app.run_polling(drop_pending_updates=True)
+
