@@ -158,8 +158,9 @@ app = Application.builder().token(TOKEN).build()
 app.add_handler(MessageHandler(filters.ChatType.CHANNEL, new_auction))
 app.add_handler(MessageHandler(filters.Regex(r"(?i)#аукцион"), new_auction))  # /sell через личку
 app.add_handler(CallbackQueryHandler(bid))
-app.add_handler(CommandHandler(command="sell", callback=sell_command))
+app.add_handler(CommandHandler("sell", sell_command))
 
 print("АУКЦИОН 2025 — 100% РАБОЧИЙ, ТАЙМЕР, КНОПКИ, /sell — ВСЁ ЕСТЬ!")
 app.run_polling(drop_pending_updates=True)
+
 
