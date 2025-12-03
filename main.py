@@ -1,33 +1,41 @@
 from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
-from telegram.ext import Application, ContextTypes, MessageHandler, CommandHandler, CallbackQueryHandler, filters, ConversationHandler
+from telegram.ext import (
+    Application, ContextTypes, MessageHandler, CommandHandler, CallbackQueryHandler,
+    filters, ConversationHandler
+)
 from datetime import datetime, timedelta
 import re
 import logging
 
 logging.basicConfig(level=logging.INFO)
 
-TOKEN      = "8454655203:AAGxMR1lN1Xs03e5BxtzpW35EuZvn8imRT0"
-GROUP      = -1003380922656
-ADMIN      = 6895755261
+TOKEN       = "8454655203:AAGxMR1lN1Xs03e5BxtzpW35EuZvn8imRT0"
+CHANNEL_ID  = -1002496916338   # твой канал @pdrop_us
+GROUP       = -1003380922656
+ADMIN       = 6895755261       # ты — уведомления сюда
 
 # Состояния диалога
-PHOTO, NAME, CONDITION, LOCATION, PRICE = range(5)
+PHOTO, NAME, COND, LOC, PRICE = range(5)
 
 auctions = {}
 
+# Уведомления тебе
 async def notify(text):
     try: await app.bot.send_message(ADMIN, f"АУКЦИОН\n\n{text}")
     except: pass
 
-def get_price(t):
-    m = re.search(r'(\d+[.,]?\d*)', t.lower().replace(',','.'))
-    if not m: return 1000
-    num = float(m.group(1))
-    if re.search(r'[кkK]', t.lower()): num *= 1000
+# Парсинг цены
+def get_price(text):
+    match = re.search(r'(\d+[.,]?\d*)', text.lower().replace(',', '.'))
+    if not match: return 1000
+    num = float(match.group(1))
+    if re.search(r'[кkK]', text.lower()): num *= 1000
     return int(num)
 
-def fmt(s): return f"{s//60:02d}:{s%60:02d}"
+# Формат времени
+def fmt(sec): return f"{sec//60:02d}:{sec%60:02d}"
 
+# Тикер лота
 async def tick(context):
     mid = context.job.data
     if mid not in auctions: return
@@ -36,7 +44,7 @@ async def tick(context):
 
     if left == 0:
         w = lot.get("lead", "никто")
-        await notify(f"ЗАВЕРШЁН\n{lot['name']}\n@{w} — {lot['price']:,} ₽")
+        await notify(f"ЗАВЕРШЁН\n{lot['name']}\nПобедитель: @{w}\nЦена: {lot['price']:,} ₽")
         try: await context.bot.edit_message_caption(GROUP, mid, caption=f"АУКЦИОН ЗАВЕРШЁН\n{lot['name']}\n@{w} — {lot['price']:,} ₽")
         except: pass
         auctions.pop(mid, None)
@@ -44,74 +52,91 @@ async def tick(context):
 
     kb = InlineKeyboardMarkup([
         [InlineKeyboardButton(f"СТАВКА: {lot['price']:,} ₽".replace(",", " "), callback_data="0")],
-        [InlineKeyboardButton(t, callback_data=f"{v}_{mid}") for t,v in [("+50₽",50),("+100₽",100),("+150₽",150)]]
+        [InlineKeyboardButton(t, callback_data=f"{v}_{mid}") for t,v in [("+50₽",50), ("+100₽",100), ("+150₽",150)]]
     ])
     cap = f"Название: {lot['name']}\nСостояние: {lot['cond']}\nСтарт: {lot['start']:,} ₽\nЛокация: {lot['loc']}\n\nЛидер: @{lot.get('lead','—')}\nОсталось: {fmt(left)}"
     try: await context.bot.edit_message_caption(GROUP, mid, caption=cap, reply_markup=kb)
     except: pass
 
-# ====== ДИАЛОГ ======
-async def start_sell(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("Привет! Давай выставим твой лот на аукцион 🚀\n\n1/5 Отправь фото лота (или напиши 'нет' если без фото)")
-    return PHOTO
-
-async def get_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if update.message.photo:
-        context.user_data['photo'] = update.message.photo[-1].file_id
-    else:
-        context.user_data['photo'] = None
-    await update.message.reply_text("2/5 Напиши название лота")
-    return NAME
-
-async def get_name(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    context.user_data['name'] = update.message.text.strip() or "Без названия"
-    await update.message.reply_text("3/5 Состояние лота (новый, б/у и т.д.)")
-    return CONDITION
-
-async def get_condition(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    context.user_data['cond'] = update.message.text.strip() or "—"
-    await update.message.reply_text("4/5 Локация (Москва, самовывоз, доставка и т.д.)")
-    return LOCATION
-
-async def get_location(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    context.user_data['loc'] = update.message.text.strip() or "—"
-    await update.message.reply_text("5/5 Стартовая цена (например 1500 или 15к)")
-    return PRICE
-
-async def get_price_and_publish(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    price = get_price(update.message.text)
-    context.user_data['price'] = price
-
-    photo = context.user_data.get('photo')
-    name = context.user_data.get('name', 'Без названия')
-    cond = context.user_data.get('cond', '—')
-    loc = context.user_data.get('loc', '—')
-
+# ФУНКЦИЯ СОЗДАНИЯ ЛОТА (используется и из диалога, и из канала)
+async def create_lot(context, photo, name, cond, loc, price, seller="канал"):
     sent = await context.bot.send_photo(
         GROUP,
         photo or "https://via.placeholder.com/600",
         caption=f"Название: {name}\nСостояние: {cond}\nСтарт: {price:,} ₽\nЛокация: {loc}\n\nЛидер: —\nОсталось: 60:00"
     )
-
     mid = sent.message_id
-    auctions[mid] = {"price": price, "start": price, "name": name, "cond": cond, "loc": loc,
-                     "end": datetime.now() + timedelta(hours=1)}
+    auctions[mid] = {"price":price,"start":price,"name":name,"cond":cond,"loc":loc,
+                     "end":datetime.now() + timedelta(hours=1)}
 
     await context.bot.send_message(GROUP, " ", reply_to_message_id=mid, reply_markup=InlineKeyboardMarkup([
         [InlineKeyboardButton(f"СТАВКА: {price:,} ₽".replace(",", " "), callback_data="0")],
         [InlineKeyboardButton(t, callback_data=f"{v}_{mid}") for t,v in [("+50₽",50),("+100₽",100),("+150₽",150)]]
     ]))
 
-    seller = update.effective_user.username or update.effective_user.first_name
     await notify(f"НОВЫЙ ЛОТ от @{seller}\n{name}\nСтарт: {price:,} ₽")
-    await update.message.reply_text("Готово! Лот выставлен в группе. Удачи в торгах! 🔥")
-
     context.job_queue.run_repeating(tick, interval=3, data=mid)
+
+# ====== 1. ДИАЛОГ В ЛС ======
+async def start_sell(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("Давай выставим лот! 🚀\n\n1/5 Фото лота (или 'нет')")
+    return PHOTO
+
+async def get_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    context.user_data['photo'] = update.message.photo[-1].file_id if update.message.photo else None
+    await update.message.reply_text("2/5 Название")
+    return NAME
+
+async def get_name(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    context.user_data['name'] = update.message.text.strip() or "Без названия"
+    await update.message.reply_text("3/5 Состояние")
+    return COND
+
+async def get_cond(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    context.user_data['cond'] = update.message.text.strip() or "—"
+    await update.message.reply_text("4/5 Локация")
+    return LOC
+
+async def get_loc(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    context.user_data['loc'] = update.message.text.strip() or "—"
+    await update.message.reply_text("5/5 Стартовая цена (1500 или 15к)")
+    return PRICE
+
+async def get_price_dialog(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    price = get_price(update.message.text)
+    seller = update.effective_user.username or update.effective_user.first_name
+    await create_lot(context,
+                     context.user_data.get('photo'),
+                     context.user_data['name'],
+                     context.user_data['cond'],
+                     context.user_data['loc'],
+                     price,
+                     seller)
+    await update.message.reply_text("Готово! Лот в группе 🔥")
     return ConversationHandler.END
 
-async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def cancel(update: Update, _):
     await update.message.reply_text("Отменено.")
     return ConversationHandler.END
+
+# ====== 2. ЛОТЫ ИЗ КАНАЛА ======
+async def channel_lot(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    msg = update.channel_post
+    if not msg or msg.chat.id != CHANNEL_ID: return
+    text = (msg.caption or msg.text or "")
+    if "#аукцион" not in text.lower(): return
+
+    price = get_price(text)
+    name = cond = loc = "—"
+    for line in text.splitlines():
+        l = line.lower()
+        if l.startswith("название:"): name = line.split(":",1)[1].strip()
+        if l.startswith("состояние:"): cond = line.split(":",1)[1].strip()
+        if l.startswith("старт"): price = get_price(line)
+        if l.startswith("локация:"): loc = line.split(":",1)[1].strip()
+
+    photo = msg.photo[-1].file_id if msg.photo else None
+    await create_lot(context, photo, name, cond, loc, price, "канал")
 
 # ====== СТАВКИ ======
 async def bid(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -133,22 +158,24 @@ async def bid(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await q.answer(f"+{amt}₽ — ты лидер!", show_alert=True)
 
 # ====== ЗАПУСК ======
-app = Application.builder().token(TOKEN).concurrent_updates=True).build()
+app = Application.builder().token(TOKEN).build()
 
+# Диалог
 conv = ConversationHandler(
-    entry_points=[CommandHandler("sell", start_sell), MessageHandler(filters.TEXT & ~filters.COMMAND, start_sell)],
+    entry_points=[CommandHandler("sell", start_sell)],
     states={
         PHOTO: [MessageHandler(filters.PHOTO | filters.TEXT, get_photo)],
         NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_name)],
-        CONDITION: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_condition)],
-        LOCATION: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_location)],
-        PRICE: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_price_and_publish)],
+        COND: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_cond)],
+        LOC: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_loc)],
+        PRICE: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_price_dialog)],
     },
     fallbacks=[CommandHandler("cancel", cancel)],
 )
 
 app.add_handler(conv)
+app.add_handler(MessageHandler(filters.ChatType.CHANNEL & filters.Regex(r"(?i)#аукцион"), channel_lot))
 app.add_handler(CallbackQueryHandler(bid, pattern=r"^\d+_\d+$"))
 
-print("АУКЦИОН С ДИАЛОГОМ — ЗАПУЩЕН БЕЗ ОШИБОК!")
-app.run_polling(drop_pending_updates=True, allowed_updates=Update.ALL_TYPES)
+print("БОТ РАБОТАЕТ: ДИАЛОГ + КАНАЛ → ГРУППА")
+app.run_polling(drop_pending_updates=True)
