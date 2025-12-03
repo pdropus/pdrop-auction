@@ -238,4 +238,9 @@ app.add_handler(MessageHandler(filters.ChatType.CHANNEL & filters.Regex(r"(?i)#�
 app.add_handler(CallbackQueryHandler(bid, pattern=r"^\d+_\d+$"))
 
 print("БОТ ЗАПУЩЕН — КНОПКИ АКТИВНЫ СРАЗУ, ТАЙМЕР ТИКАЕТ!")
-app.run_polling(drop_pending_updates=True)
+if __name__ == '__main__':
+    print("АУКЦИОН-БОТ ЗАПУЩЕН НА RAILWAY 24/7 🔥")
+    app.run_polling(
+        drop_pending_updates=True,
+        allowed_updates=Update.ALL_TYPES
+    )
