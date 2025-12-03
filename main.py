@@ -111,27 +111,27 @@ async def create_lot(context, photo_file_id, name, cond, loc, price, seller="к�
 
 # ====== ДИАЛОГ ======
 async def start_sell(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("Давай выставим лот! 🚀\n\n1/5 Фото (или 'нет')")
+    await update.message.reply_text("Давай выставим лот! 🚀 Фото (или 'нет')")
     return PHOTO
 
 async def get_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data['photo'] = update.message.photo[-1].file_id if update.message.photo else None
-    await update.message.reply_text("2/5 Название")
+    await update.message.reply_text("Название")
     return NAME
 
 async def get_name(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data['name'] = update.message.text.strip()
-    await update.message.reply_text("3/5 Состояние")
+    await update.message.reply_text("Состояние")
     return COND
 
 async def get_cond(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data['cond'] = update.message.text.strip()
-    await update.message.reply_text("4/5 Локация")
+    await update.message.reply_text("Локация")
     return LOC
 
 async def get_loc(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data['loc'] = update.message.text.strip()
-    await update.message.reply_text("5/5 Стартовая цена (например 3000 или 3к)")
+    await update.message.reply_text("Стартовая цена (например 100 или 3к)")
     return PRICE
 
 async def get_price_dialog(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -210,3 +210,4 @@ app.add_handler(CallbackQueryHandler(bid, pattern=r"^\d+_\d+$"))
 
 print("БОТ ГОТОВ — КРАСИВЫЕ ЛОТЫ КАК НА СКРИНШОТЕ!")
 app.run_polling(drop_pending_updates=True)
+
