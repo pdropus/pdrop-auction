@@ -101,32 +101,32 @@ async def create_lot(context, photo_file_id, name, cond, loc, price, comment="",
 
 # ====== ДИАЛОГ В ЛС (теперь 6 шагов) ======
 async def start_sell(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("Давай выставим лот! 🚀\n\n1/6 Фото лота (или напиши 'нет')")
+    await update.message.reply_text("Давай выставим лот! 🚀 Фото лота (или напиши 'нет')")
     return PHOTO
 
 async def get_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data['photo'] = update.message.photo[-1].file_id if update.message.photo else None
-    await update.message.reply_text("2/6 Название лота")
+    await update.message.reply_text("Название лота/товара")
     return NAME
 
 async def get_name(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data['name'] = update.message.text.strip() or "Без названия"
-    await update.message.reply_text("3/6 Состояние")
+    await update.message.reply_text("Состояние (новое или б/у)")
     return COND
 
 async def get_cond(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data['cond'] = update.message.text.strip() or "—"
-    await update.message.reply_text("4/6 Локация")
+    await update.message.reply_text("Локация")
     return LOC
 
 async def get_loc(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data['loc'] = update.message.text.strip() or "—"
-    await update.message.reply_text("5/6 Стартовая цена (например 3000 или 3к)")
+    await update.message.reply_text("Стартовая цена")
     return PRICE
 
 async def get_price_dialog(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data['price'] = get_price(update.message.text)
-    await update.message.reply_text("6/6 Дополнительный комментарий/описание товара\n(можно пропустить — напиши 'нет')")
+    await update.message.reply_text("Дополнительный комментарий/описание товара\n(можно пропустить — напиши 'нет')")
     return COMMENT
 
 async def get_comment(update: Update, context: ContextTypes.DEFAULT_TYPE):
